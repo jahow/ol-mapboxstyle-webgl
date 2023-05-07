@@ -1,0 +1,16 @@
+{
+  "name": "ol-mapboxstyle-webgl",
+  "version": "1.0.0",
+  "description": "convert mapbox/maplibre style objects to OpenLayers flas style",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "olivia.guyot@camptocamp.com",
+  "license": "BSD-3-Clause",
+  "dependencies": {
+    "commander": "^10.0.1",
+    "prettier": "^2.8.8"
+  }
+}
