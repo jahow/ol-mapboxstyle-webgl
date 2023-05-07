@@ -4,7 +4,7 @@ export function simplifyExpression(expression) {
     if (!Array.isArray(expr)) return expr;
     const args = expr.slice(2);
     for (let i = 0; i < args.length; i++) {
-      args[i] = simplify(args[i]);
+      expr[i + 2] = simplify(args[i]);
     }
     expr = expr.filter((a) => a !== null); // remove null entries which may result from simplification
     expr = regroupOrCriteria(expr);
@@ -13,8 +13,11 @@ export function simplifyExpression(expression) {
     expr = expr.filter((a) => a !== null);
     expr = removeSingleArgOperators(expr);
     expr = expr.filter((a) => a !== null);
+    expr = collapseIdenticalLogicalOperators(expr);
+    expr = expr.filter((a) => a !== null);
     return expr;
   }
+  expression = simplify(expression);
   expression = simplify(expression);
   expression = simplify(expression);
   const endLen = JSON.stringify(expression).length;
@@ -36,10 +39,10 @@ function regroupOrCriteria(expression) {
     return expression;
   }
   const operator = expression[0];
-  const args = expression.slice(1);
   if (operator !== "any") {
     return expression;
   }
+  const args = expression.slice(1);
 
   function collectValuesForProp(propName) {
     const collected = [];
@@ -157,6 +160,28 @@ function removeSingleArgOperators(expression) {
     return null;
   }
   return [expression[0], ...uniqueArgs];
+}
+
+function collapseIdenticalLogicalOperators(expression) {
+  if (!Array.isArray(expression)) {
+    return expression;
+  }
+  const operator = expression[0];
+  if (operator !== "any" && operator !== "all") {
+    return expression;
+  }
+  const args = expression.slice(1);
+  const newArgs = args.reduce((prev, curr) => {
+    if (!Array.isArray(curr)) {
+      return [...prev, curr];
+    }
+    const childOperator = curr[0];
+    if (childOperator !== operator) {
+      return [...prev, curr];
+    }
+    return [...prev, ...curr.slice(1)];
+  }, []);
+  return [expression[0], ...newArgs];
 }
 
 function getPropName(expr) {
