@@ -60,8 +60,11 @@ function getStyleForSourceLayer(sourceLayer, mbStyle) {
     .filter((l) => l["source-layer"] === sourceLayer)
     .filter((l) => l?.layout?.visibility === "visible");
   const filters = collect(layers, "filter");
+  const filter = filters.length
+    ? simplifyExpression(["any", ...filters])
+    : undefined;
   return {
-    filter: simplifyExpression(["any", ...filters]),
+    filter,
   };
 }
 
