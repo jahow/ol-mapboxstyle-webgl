@@ -1,10 +1,11 @@
+import { simplifyExpression } from "./expression-handler.js";
+
 function collect(objects, propName) {
   return objects.reduce((prev, curr) => {
-    const value =
-      typeof curr[propName] === "string"
-        ? curr[propName]
-        : JSON.stringify(curr[propName]);
-    return prev.indexOf(value) > -1 ? prev : [...prev, value];
+    return !(propName in curr) ||
+      prev.some((v) => JSON.stringify(v) === JSON.stringify(curr[propName]))
+      ? prev
+      : [...prev, curr[propName]];
   }, []);
 }
 
@@ -58,8 +59,9 @@ function getStyleForSourceLayer(sourceLayer, mbStyle) {
   const layers = mbStyle.layers
     .filter((l) => l["source-layer"] === sourceLayer)
     .filter((l) => l?.layout?.visibility === "visible");
+  const filters = collect(layers, "filter");
   return {
-    filter: ["any", ...layers.filter((l) => !!l.filter).map((l) => l.filter)],
+    filter: simplifyExpression(["any", ...filters]),
   };
 }
 
