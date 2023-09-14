@@ -2,17 +2,13 @@ export function simplifyExpression(expression) {
   const startLen = JSON.stringify(expression).length;
   function simplify(expr) {
     if (!Array.isArray(expr)) return expr;
-    const args = expr.slice(2);
-    for (let i = 0; i < args.length; i++) {
-      expr[i + 2] = simplify(args[i]);
+    for (let i = 1; i < expr.length; i++) {
+      expr[i] = simplify(expr[i]);
     }
     expr = expr.filter((a) => a !== null); // remove null entries which may result from simplification
     expr = regroupOrCriteria(expr);
-    expr = expr.filter((a) => a !== null);
     expr = removeUnnecessaryNestedCriteria(expr);
-    expr = expr.filter((a) => a !== null);
     expr = removeSingleArgOperators(expr);
-    expr = expr.filter((a) => a !== null);
     expr = collapseIdenticalLogicalOperators(expr);
     expr = expr.filter((a) => a !== null);
     return expr;
@@ -49,7 +45,9 @@ function regroupOrCriteria(expression) {
     // loop backwards and remove elements once collected
     for (let i = args.length - 1; i >= 0; i--) {
       const expr = args[i];
+      if (!Array.isArray(expr)) continue;
       if (expr[0] !== "in" && expr[0] !== "==") continue;
+      if (propName !== getPropName(expr[1])) continue;
       const values = expr
         .slice(2)
         .filter((value) =>
@@ -79,6 +77,15 @@ function regroupOrCriteria(expression) {
 // to
 // [any,
 //    [and, [in, klasse, A, B], [=, type, X]],
+//    [in, klasse, C, D]
+// ]
+//
+// [any,
+//    [and, [in, klasse, C, D], [=, type, X]],
+//    [in, klasse, C, D]
+// ]
+// to
+// [any,
 //    [in, klasse, C, D]
 // ]
 function removeUnnecessaryNestedCriteria(expression) {
@@ -126,15 +133,14 @@ function removeUnnecessaryNestedCriteria(expression) {
     const expr = args[i];
     if (!Array.isArray(expr)) continue;
     if (expr[0] !== "all") continue;
-    let newArgs = expr
-      .slice(1)
-      .map(trimUnnecessaryOptions)
-      .filter((arg) => arg !== null);
-    if (newArgs.length > 1) {
+    let newArgs = expr.slice(1).map(trimUnnecessaryOptions);
+    if (newArgs.some((arg) => arg === null) || newArgs.length === 0) {
+      args[i] = null;
+    } else if (newArgs.length > 1) {
       args[i] = ["all", ...newArgs];
-    } else if (newArgs.length === 1) {
+    } else {
       args[i] = newArgs[0];
-    } else args[i] = null;
+    }
   }
 
   return [operator, ...args];

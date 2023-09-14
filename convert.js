@@ -1,4 +1,4 @@
-import { simplifyExpression } from "./expression-handler.js";
+import { simplifyExpression } from "./simplify.js";
 
 function collect(objects, propName) {
   return objects.reduce((prev, curr) => {
@@ -19,9 +19,9 @@ function analyzeStyle(mbStyle) {
   const zoomLevels = new Array(22).fill(0).map((v, i) => i + 1);
 
   console.log(
-    `Sources: ${Object.keys(mbStyle.sources).map(
-      (s) => `${s} (${sources[s].type})`
-    )}`
+    `Sources: ${Object.keys(mbStyle.sources)
+      .map((s) => `${s} (${sources[s].type})`)
+      .join(", ")}`
   );
   console.log(`Source layers: ${sourceLayers.length}`);
   console.log(`Source layers count: ${sourceLayers.join(", ")}`);
@@ -65,6 +65,8 @@ function getStyleForSourceLayer(sourceLayer, mbStyle) {
     : undefined;
   return {
     filter,
+    ...layers[0].paint,
+    ...layers[0].layout,
   };
 }
 
