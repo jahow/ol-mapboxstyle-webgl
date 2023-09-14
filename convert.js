@@ -63,6 +63,9 @@ function getStyleForSourceLayer(sourceLayer, mbStyle) {
   const filter = filters.length
     ? simplifyExpression(["any", ...filters])
     : undefined;
+  if (!layers[0]) {
+    return { filter };
+  }
   return {
     filter,
     ...layers[0].paint,
