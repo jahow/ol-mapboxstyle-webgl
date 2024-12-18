@@ -235,7 +235,8 @@ export async function convertToFlatStyle(stylePath) {
     .filter(
       (layer) => layer.layout?.visibility !== "none" && layer.type !== "raster",
     )
-    .map((layer) => getStyleForLayer(layer, spritesheet, spritesPath));
+    .map((layer) => getStyleForLayer(layer, spritesheet, spritesPath))
+    .filter((rule) => Object.keys(rule.style).length > 0);
 
   console.log(`Final rules count: ${style.length}`);
 
