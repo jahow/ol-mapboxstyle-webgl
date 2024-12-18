@@ -1,4 +1,5 @@
 import { simplifyExpression } from "./simplify.js";
+import { readFile } from "node:fs/promises";
 
 function collect(objects, propName) {
   return objects.reduce((prev, curr) => {
@@ -21,32 +22,32 @@ function analyzeStyle(mbStyle) {
   console.log(
     `Sources: ${Object.keys(mbStyle.sources)
       .map((s) => `${s} (${sources[s].type})`)
-      .join(", ")}`
+      .join(", ")}`,
   );
   console.log(`Source layers: ${sourceLayers.length}`);
   console.log(`Source layers count: ${sourceLayers.join(", ")}`);
   console.log(`Layers count: ${layers.length}`);
   layerTypes.forEach((type) =>
     console.log(
-      `- of type ${type}: ${layers.filter((l) => l.type === type).length}`
-    )
+      `- of type ${type}: ${layers.filter((l) => l.type === type).length}`,
+    ),
   );
   console.log(
     `Layers not visible count: ${
       layers.filter((l) => l?.layout?.visibility !== "visible").length
-    }`
+    }`,
   );
   console.log(`Unique filters count: ${filters.length}`);
   console.log(
-    `Total filters count: ${layers.filter((l) => !!l.filter).length}`
+    `Total filters count: ${layers.filter((l) => !!l.filter).length}`,
   );
   console.log("Layers visible by zoom level:");
   zoomLevels.forEach((level) =>
     console.log(
       `  ${level}: ${
         layers.filter((l) => l.maxzoom >= level && l.minzoom <= level).length
-      }`
-    )
+      }`,
+    ),
   );
 }
 
@@ -74,6 +75,13 @@ function fixExpression(expression) {
       ...expression.slice(2).map(fixExpression),
     ];
   }
+  if (expression[0] === "in" && typeof expression[1] === "string") {
+    return [
+      expression[0],
+      ["get", expression[1]],
+      ...expression.slice(2).map(fixExpression),
+    ];
+  }
   return [expression[0], ...expression.slice(1).map(fixExpression)];
 }
 
@@ -83,7 +91,7 @@ function fixExpression(expression) {
  * @param {string} spritesPath
  * @return {Object}
  */
-function getStyleForSourceLayer(layer, spritesheet, spritesPath) {
+function getStyleForLayer(layer, spritesheet, spritesPath) {
   const filters = [["==", ["get", "layer"], layer["source-layer"]]];
   if (layer.filter) {
     filters.push(fixExpression(layer.filter));
@@ -164,9 +172,11 @@ function getStyleForSourceLayer(layer, spritesheet, spritesPath) {
     }
   }
 
+  const filter = filters.length === 1 ? filters[0] : ["all", ...filters];
+
   return {
-    filter: filters.length === 1 ? filters[0] : ["all", ...filters],
-    ...style,
+    filter: simplifyExpression(filter),
+    style,
   };
 
   // const layers = mbStyle.layers
@@ -205,21 +215,29 @@ function getStyleForSourceLayer(layer, spritesheet, spritesPath) {
 // }
 
 /**
- * @param {string} stylePath JSON style
+ * @param {string} stylePath JSON style path
  * @return {import('ol/style/flat').default}
  */
 export async function convertToFlatStyle(stylePath) {
-  const base = await fetch(stylePath).then((resp) => resp.json());
-  const spritesheet = await fetch(`${base.sprite}.json`).then((resp) =>
-    resp.json()
-  );
-  const spritesPath = `${base.sprite}.png`;
+  async function loadJsonFile(path) {
+    if (/http?s:\/\//.test(path)) {
+      return fetch(path).then((resp) => resp.json());
+    }
+    return JSON.parse(await readFile(path, { encoding: "utf8" }));
+  }
+  const styleJson = await loadJsonFile(stylePath);
+  const spritesheet = await loadJsonFile(`${styleJson.sprite}.json`);
+  const spritesPath = `${styleJson.sprite}.png`;
 
-  analyzeStyle(base);
+  analyzeStyle(styleJson);
 
-  return base.layers
+  const style = styleJson.layers
     .filter(
-      (layer) => layer.layout?.visibility !== "none" && layer.type !== "raster"
+      (layer) => layer.layout?.visibility !== "none" && layer.type !== "raster",
     )
-    .map((layer) => getStyleForSourceLayer(layer, spritesheet, spritesPath));
+    .map((layer) => getStyleForLayer(layer, spritesheet, spritesPath));
+
+  console.log(`Final rules count: ${style.length}`);
+
+  return style;
 }
